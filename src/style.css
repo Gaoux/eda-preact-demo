@@ -8,7 +8,10 @@ body {
   background-color: #673ab8;
 }
 
-.user-view-container {
+.main {
+  display: flex;
+}
+.view-container {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -16,7 +19,7 @@ body {
   width: 100%;
 }
 
-.user-list-container {
+.list-container {
   background-color: #222;
   color: #fff;
   padding: 2rem;
@@ -38,4 +41,42 @@ button {
 
 button:hover {
   background-color: #3e8f42;
+}
+.property-form {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.property-form input {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+}
+
+.property-form button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  background-color: #673ab8;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.property-form button:hover {
+  background-color: #512da8;
+}
+
+.remove-btn {
+  margin-left: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #ff5722;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.remove-btn:hover {
+  background-color: #e64a19;
 }

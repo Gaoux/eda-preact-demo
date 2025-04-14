@@ -5,6 +5,7 @@ interface Property {
   id: string;
   name: string;
   price: number;
+  ownerId: string; // Linking the property to the user by their userId
 }
 
 class PropertyStore extends EventEmitter {

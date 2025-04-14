@@ -38,12 +38,14 @@ class UserView extends Component<{}, UserViewState> {
 
   render() {
     return (
-      <div className='user-view-container'>
-        <div className='user-list-container'>
+      <div className='view-container'>
+        <div className='list-container'>
           <h1>User List</h1>
           <ul>
             {this.state.users.map((user) => (
-              <li key={user.id}>{user.name}</li>
+              <li key={user.id}>
+                {user.id}: {user.name}
+              </li>
             ))}
           </ul>
           <button onClick={this.handleAddUser}>Add User</button>
