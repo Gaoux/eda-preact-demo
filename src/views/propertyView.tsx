@@ -1,19 +1,23 @@
 import { h, Component } from 'preact';
 import propertyStore from '../stores/propertyStore';
 import propertyActions from '../actions/propertyActions';
+import userStore from '../stores/userStore';
 
 interface Property {
   id: string;
   name: string;
   price: number;
-  ownerId: string; // Owner ID for each property
+  ownerId: string;
 }
 
 interface PropertyViewState {
   properties: Property[];
   newPropertyName: string;
-  newPropertyPrice: number;
-  ownerId: string; // Owner's ID (this could be dynamically fetched from a user store or props)
+  newPropertyPrice: string;
+  ownerId: string;
+  isLoading: boolean;
+  error?: string;
+  availableUsers: {id: string, name: string}[];
 }
 
 class PropertyView extends Component<{}, PropertyViewState> {
@@ -22,99 +26,225 @@ class PropertyView extends Component<{}, PropertyViewState> {
     this.state = {
       properties: propertyStore.getProperties(),
       newPropertyName: '',
-      newPropertyPrice: 0,
-      ownerId: '1', // Hardcoded ownerId for demo purposes, this should be dynamic (e.g., from a user store)
+      newPropertyPrice: '',
+      ownerId: '',
+      isLoading: false,
+      availableUsers: []
     };
   }
 
   componentDidMount() {
-    propertyStore.on('change', this.updateState);
+    propertyStore.addListener('change', this.handleStoreChange);
+    userStore.addListener('change', this.updateAvailableUsers);
+    this.updateAvailableUsers();
   }
 
   componentWillUnmount() {
-    propertyStore.removeListener('change', this.updateState);
+    propertyStore.removeListener('change', this.handleStoreChange);
+    userStore.removeListener('change', this.updateAvailableUsers);
   }
 
-  updateState = () => {
+  private handleStoreChange = () => {
     this.setState({ properties: propertyStore.getProperties() });
   };
 
-  handleAddProperty = () => {
+  private updateAvailableUsers = () => {
+    this.setState({
+      availableUsers: userStore.getUsers().map(user => ({
+        id: user.id,
+        name: user.name
+      }))
+    });
+  };
+
+  private handleInputChange = (e: Event) => {
+    const target = e.target as HTMLInputElement | HTMLSelectElement;
+    this.setState({
+      [target.name]: target.value
+    } as unknown as PropertyViewState);
+  };
+
+  private validateForm = (): boolean => {
     const { newPropertyName, newPropertyPrice, ownerId } = this.state;
-    const id = Date.now().toString();
+    const price = parseFloat(newPropertyPrice);
 
-    // Validate that the owner exists (this can be linked to your user store validation)
-    const newProperty = {
-      id,
-      name: newPropertyName || `Property ${id}`,
-      price: newPropertyPrice || Math.floor(Math.random() * 1000) + 100, // Random price for demo
-      ownerId,
-    };
+    if (!newPropertyName.trim()) {
+      this.setState({ error: 'Property name is required' });
+      return false;
+    }
 
-    // Add the property with the ownerId
-    propertyActions.addProperty(newProperty);
-    this.setState({ newPropertyName: '', newPropertyPrice: 0 }); // Reset input fields
+    if (isNaN(price)) {
+      this.setState({ error: 'Price must be a valid number' });
+      return false;
+    }
+
+    if (price <= 0) {
+      this.setState({ error: 'Price must be greater than 0' });
+      return false;
+    }
+
+    if (!ownerId) {
+      this.setState({ error: 'Owner must be selected' });
+      return false;
+    }
+
+    this.setState({ error: undefined });
+    return true;
   };
 
-  handleRemoveProperty = (id: string) => {
-    propertyActions.removeProperty(id);
+  private handleAddProperty = async (e: Event) => {
+    e.preventDefault();
+    if (!this.validateForm()) return;
+
+    const { newPropertyName, newPropertyPrice, ownerId } = this.state;
+    const price = parseFloat(newPropertyPrice);
+
+    this.setState({ isLoading: true });
+
+    try {
+      const newProperty: Property = {
+        id: Date.now().toString(),
+        name: newPropertyName.trim(),
+        price,
+        ownerId
+      };
+
+      await propertyActions.addProperty(newProperty);
+      this.setState({
+        newPropertyName: '',
+        newPropertyPrice: '',
+        ownerId: ''
+      });
+    } catch (error) {
+      this.setState({
+        error: error instanceof Error ? error.message : 'Failed to add property'
+      });
+    } finally {
+      this.setState({ isLoading: false });
+    }
   };
 
-  handleInputChange = (e: Event) => {
-    const { name, value } = e.target as HTMLInputElement;
-    this.setState({ [name]: value } as unknown as PropertyViewState);
+  private handleRemoveProperty = async (id: string) => {
+    this.setState({ isLoading: true });
+    try {
+      await propertyActions.removeProperty(id);
+    } catch (error) {
+      this.setState({
+        error: error instanceof Error ? error.message : 'Failed to remove property'
+      });
+    } finally {
+      this.setState({ isLoading: false });
+    }
   };
 
   render() {
-    const { properties, newPropertyName, newPropertyPrice, ownerId } =
-      this.state;
+    const {
+      properties,
+      newPropertyName,
+      newPropertyPrice,
+      ownerId,
+      isLoading,
+      error,
+      availableUsers
+    } = this.state;
 
     return (
-      <div className='view-container'>
-        <div className='list-container'>
-          <h1>Property List</h1>
+      <div class="property-view">
+        <h1>Property Management</h1>
+        
+        {error && (
+          <div class="error-message">
+            {error}
+            <button onClick={() => this.setState({ error: undefined })}>Dismiss</button>
+          </div>
+        )}
 
-          <div className='property-form'>
+        <form onSubmit={this.handleAddProperty} class="property-form">
+          <div class="form-group">
+            <label for="propertyName">Property Name</label>
             <input
-              type='text'
-              name='newPropertyName'
+              id="propertyName"
+              type="text"
+              name="newPropertyName"
               value={newPropertyName}
-              placeholder='Property Name'
+              placeholder="Enter property name"
               onInput={this.handleInputChange}
+              disabled={isLoading}
+              required
             />
-            <input
-              type='number'
-              name='newPropertyPrice'
-              value={newPropertyPrice}
-              placeholder='Property Price'
-              onInput={this.handleInputChange}
-            />
-            <input
-              type='text'
-              name='ownerId'
-              value={ownerId}
-              placeholder='Owner ID'
-              onInput={this.handleInputChange}
-            />
-            <button onClick={this.handleAddProperty}>Add Property</button>
           </div>
 
-          <ul>
-            {properties.map((property) => (
-              <li key={property.id}>
-                <span>
-                  {property.name} - ${property.price} (Owner ID:{' '}
-                  {property.ownerId})
-                </span>
-                <button
-                  className='remove-btn'
-                  onClick={() => this.handleRemoveProperty(property.id)}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div class="form-group">
+            <label for="propertyPrice">Price ($)</label>
+            <input
+              id="propertyPrice"
+              type="number"
+              name="newPropertyPrice"
+              value={newPropertyPrice}
+              placeholder="Enter price"
+              onInput={this.handleInputChange}
+              disabled={isLoading}
+              min="1"
+              step="0.01"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="propertyOwner">Owner</label>
+            <select
+              id="propertyOwner"
+              name="ownerId"
+              value={ownerId}
+              onInput={this.handleInputChange}
+              disabled={isLoading || availableUsers.length === 0}
+              required
+            >
+              <option value="">Select Owner</option>
+              {availableUsers.map(user => (
+                <option value={user.id} key={user.id}>
+                  {user.name} (ID: {user.id})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || availableUsers.length === 0}
+            class="submit-button"
+          >
+            {isLoading ? 'Adding...' : 'Add Property'}
+          </button>
+        </form>
+
+        <div class="property-list">
+          <h2>Current Properties</h2>
+          {properties.length === 0 ? (
+            <p>No properties available</p>
+          ) : (
+            <ul>
+              {properties.map(property => {
+                const owner = availableUsers.find(u => u.id === property.ownerId);
+                return (
+                  <li key={property.id} class="property-item">
+                    <div class="property-info">
+                      <h3>{property.name}</h3>
+                      <p>Price: ${property.price.toLocaleString()}</p>
+                      <p>Owner: {owner ? owner.name : 'Unknown'} (ID: {property.ownerId})</p>
+                    </div>
+                    <button
+                      onClick={() => this.handleRemoveProperty(property.id)}
+                      disabled={isLoading}
+                      class="remove-button"
+                    >
+                      {isLoading ? 'Removing...' : 'Remove'}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
     );
