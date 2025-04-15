@@ -1,21 +1,82 @@
-# `create-preact`
+# Event-Driven Preact Demo (EDA-Preact-Demo)
 
-This is a Preact App that uses Flux architecture as part of an EDA (Event-Driven Architecture) with Kafka for event streaming.
+## ⚠️ Important System Requirements
 
-<h2 align="center">
-  <img height="256" width="256" src="./src/assets/preact.svg">
-</h2>
+**This frontend requires a compatible backend service to be running.** The demo won't function properly without:
 
-<h3 align="center">Get started using Preact and Vite!</h3>
+1. **Kafka Backend Service** (Go/Node.js/Java)
 
-## Getting Started
+   - Must be connected to the same Kafka broker
+   - Must implement the expected event schemas:
 
-- `npm run dev` - Starts a dev server at http://localhost:5173/
-- `npm run build` - Builds for production, emitting to `dist/`
-- `npm run preview` - Starts a server at http://localhost:4173/ to test production build locally
+     ```typescript
+     interface UserEvent {
+       type: 'USER_CREATED' | 'USER_UPDATED';
+       user: { id: string; name: string };
+     }
 
-## Architecture
+     interface PropertyEvent {
+       type: 'PROPERTY_ADDED' | 'PROPERTY_REMOVED';
+       property: { id: string; name: string; price: number };
+     }
+     ```
 
-This app follows a **Flux architecture** to manage its state. The state management system is based on **actions**, **stores**, and **dispatchers**, where events are emitted and consumed in an event-driven way.
+2. **Kafka Infrastructure** (included in `/kafka-infra`)
+   - Requires Docker
+   - Starts Kafka + REST Proxy
 
-This app is also part of an **EDA (Event-Driven Architecture)** utilizing **Kafka** for stream processing, providing robust event management and scalability.
+## Quick Start (Development)
+
+1. **Start Kafka** (in separate terminal):
+
+   ```bash
+   cd kafka-infra
+   docker-compose up -d
+   ```
+
+   _For more Kafka configuration details, see the [Kafka README](./kafka-infra/README.md)_
+
+2. **Run Backend Service**:  
+   See your backend [repository](https://github.com/gaoux/) README for instructions
+
+3. **Run Frontend**:
+
+   ```bash
+    npm install
+    npm run dev
+   ```
+
+4. **Access the application**:  
+   Open `http://localhost:5173` in your browser
+
+## Backend Integration Checklist
+
+Your backend must:
+
+1. Connect to the same Kafka broker (localhost:9092)
+2. Produce/consume from these topics:
+
+   - `user-events`
+   - `property-events`
+
+## Production Notes
+
+This setup is for development only.
+
+## Troubleshooting
+
+If events aren't processing:
+
+1. Verify backend is running
+
+2. Check Kafka topics exist:
+
+   ```bash
+   docker-compose exec kafka kafka-topics --list --bootstrap-server localhost:9092
+   ```
+
+3. Inspect REST Proxy logs:
+
+   ```bash
+   docker-compose logs kafka-rest
+   ```
