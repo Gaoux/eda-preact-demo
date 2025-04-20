@@ -1,11 +1,10 @@
 import { h, Component } from 'preact';
 import userStore from '../stores/userStore';
-import UserActions from '../actions/userActions';
+import * as UserActions from '../actions/userActions';
 
 interface User {
   id: string;
   name: string;
-  email?: string;
 }
 
 interface UserViewState {
@@ -20,14 +19,15 @@ class UserView extends Component<{}, UserViewState> {
   constructor() {
     super();
     this.state = {
-      users: userStore.getUsers(),
+      users: userStore.getAll(),
       isLoading: false,
+      error: undefined,
     };
+    this.handleAddUser = this.handleAddUser.bind(this); // Bind method explicitly
   }
 
   componentDidMount() {
     userStore.addListener('change', this.handleStoreChange);
-    this.checkKafkaConnection();
   }
 
   componentWillUnmount() {
@@ -35,24 +35,7 @@ class UserView extends Component<{}, UserViewState> {
   }
 
   private handleStoreChange = () => {
-    this.setState({ users: userStore.getUsers() });
-  };
-
-  private checkKafkaConnection = async () => {
-    this.setState({ isLoading: true });
-    try {
-      const isHealthy = await UserActions.checkKafkaHealth();
-      if (!isHealthy) {
-        this.setState({ error: 'Connection to Kafka service failed' });
-      }
-    } catch (error) {
-      this.setState({
-        error:
-          error instanceof Error ? error.message : 'Kafka connection error',
-      });
-    } finally {
-      this.setState({ isLoading: false });
-    }
+    this.setState({ users: userStore.getAll() });
   };
 
   private handleAddUser = async (e: Event) => {
@@ -63,15 +46,18 @@ class UserView extends Component<{}, UserViewState> {
     this.setState({ isLoading: true, error: undefined });
 
     try {
-      await UserActions.addUser({
-        name,
-        email: `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-      });
+      await UserActions.addUser(name);
       this.newUserInput.value = '';
     } catch (error) {
-      this.setState({
-        error: error instanceof Error ? error.message : 'Failed to add user',
-      });
+      console.error('Caught error:', error); // Log the error
+      this.setState(
+        {
+          error: error instanceof Error ? error.message : 'Failed to add user',
+        },
+        () => {
+          console.log('Updated state:', this.state); // Confirm state update
+        }
+      );
     } finally {
       this.setState({ isLoading: false });
     }
@@ -85,14 +71,7 @@ class UserView extends Component<{}, UserViewState> {
         <div class='list-container'>
           <h1>User List</h1>
 
-          {error && (
-            <div class='error-message'>
-              Error: {error}
-              <button onClick={this.checkKafkaConnection}>
-                Retry Connection
-              </button>
-            </div>
-          )}
+          {error && <div class='error-message'>Error: {error}</div>}
 
           {isLoading && <div class='loading-indicator'>Processing...</div>}
 
@@ -101,7 +80,6 @@ class UserView extends Component<{}, UserViewState> {
               <li key={user.id} class='user-item'>
                 <span class='user-id'>{user.id}</span>
                 <span class='user-name'>{user.name}</span>
-                {user.email && <span class='user-email'>{user.email}</span>}
               </li>
             ))}
           </ul>

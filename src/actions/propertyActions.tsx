@@ -1,10 +1,7 @@
 import AppDispatcher from '../dispatcher/dispatcher';
-import userStore from '../stores/userStore';
-import { produceEvent } from '../utils/KafkaService';
 
 export const ADD_PROPERTY = 'ADD_PROPERTY';
 export const REMOVE_PROPERTY = 'REMOVE_PROPERTY';
-export const PROPERTY_ERROR = 'PROPERTY_ERROR';
 
 interface Property {
   id: string;
@@ -13,121 +10,64 @@ interface Property {
   ownerId: string;
 }
 
-interface KafkaPropertyEvent {
-  type: string;
-  property?: Property;
-  propertyId?: string;
-  timestamp: string;
-  metadata?: {
-    source: 'frontend';
-    [key: string]: any;
-  };
+// Add Property Action
+export function addProperty(property: Property) {
+  // Call the Go API Gateway to emit the event to Kafka
+  fetch('http://localhost:8080/api/events', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      eventType: ADD_PROPERTY,
+      payload: property,
+    }),
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Failed to send add-property event');
+      }
+      return res.json();
+    })
+    .then((data) => {
+      // Dispatch to Flux for local state handling (optional)
+      AppDispatcher.dispatch({
+        type: ADD_PROPERTY,
+        property: data.property, // in case backend responds with the created property
+      });
+    })
+    .catch((err) => {
+      console.error('Error sending add-property event:', err);
+    });
 }
 
-const PropertyActions = {
-  /**
-   * Add a new property with owner validation
-   */
-  async addProperty(property: Property): Promise<void> {
-    try {
-      // Validate owner exists
-      const ownerExists = userStore
-        .getUsers()
-        .some((user) => user.id === property.ownerId);
-
-      if (!ownerExists) {
-        throw new Error(`User with ID ${property.ownerId} does not exist`);
+// Remove Property Action
+export function removeProperty(propertyId: string) {
+  // Call the Go API Gateway to emit the event to Kafka
+  fetch('http://localhost:8080/api/events', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      eventType: REMOVE_PROPERTY,
+      payload: { id: propertyId },
+    }),
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Failed to send remove-property event');
       }
-
-      // Dispatch optimistic update
-      AppDispatcher.dispatch({
-        type: ADD_PROPERTY,
-        property,
-      });
-
-      // Create Kafka event
-      const event: KafkaPropertyEvent = {
-        type: ADD_PROPERTY,
-        property,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          source: 'frontend',
-          sessionId: window.sessionStorage.getItem('sessionId') || undefined,
-        },
-      };
-
-      // Send to Kafka via REST Proxy
-      await produceEvent('property-topic', event);
-      console.debug('Property added via Kafka:', property.name);
-    } catch (error) {
-      console.error('Error in addProperty:', error);
-      AppDispatcher.dispatch({
-        type: PROPERTY_ERROR,
-        payload: {
-          error:
-            error instanceof Error ? error.message : 'Failed to add property',
-          originalPayload: property,
-        },
-      });
-    }
-  },
-
-  /**
-   * Remove a property
-   */
-  async removeProperty(propertyId: string): Promise<void> {
-    try {
-      // Dispatch optimistic update
+      return res.json();
+    })
+    .then((data) => {
+      // Dispatch to Flux for local state handling (optional)
       AppDispatcher.dispatch({
         type: REMOVE_PROPERTY,
-        propertyId,
+        propertyId: data.propertyId, // in case backend responds with the removed property ID
       });
-
-      // Create Kafka event
-      const event: KafkaPropertyEvent = {
-        type: REMOVE_PROPERTY,
-        propertyId,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          source: 'frontend',
-          action: 'property_removal',
-        },
-      };
-
-      // Send to Kafka via REST Proxy
-      await produceEvent('property-topic', event);
-      console.debug('Property removed via Kafka:', propertyId);
-    } catch (error) {
-      console.error('Error in removeProperty:', error);
-      AppDispatcher.dispatch({
-        type: PROPERTY_ERROR,
-        payload: {
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to remove property',
-          propertyId,
-        },
-      });
-    }
-  },
-
-  /**
-   * Health check for Kafka connection
-   */
-  async checkKafkaHealth(): Promise<boolean> {
-    try {
-      // Test connection by sending a small health check event
-      await produceEvent('health-checks', {
-        type: 'PROPERTY_SERVICE_HEALTH_CHECK',
-        timestamp: new Date().toISOString(),
-      });
-      return true;
-    } catch (error) {
-      console.error('Kafka health check failed:', error);
-      return false;
-    }
-  },
-};
-
-export default PropertyActions;
+    })
+    .catch((err) => {
+      console.error('Error sending remove-property event:', err);
+    });
+}

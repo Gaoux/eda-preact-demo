@@ -1,6 +1,6 @@
 import { h, Component } from 'preact';
 import propertyStore from '../stores/propertyStore';
-import propertyActions from '../actions/propertyActions';
+import * as propertyActions from '../actions/propertyActions';
 import userStore from '../stores/userStore';
 
 interface Property {
@@ -17,7 +17,7 @@ interface PropertyViewState {
   ownerId: string;
   isLoading: boolean;
   error?: string;
-  availableUsers: {id: string, name: string}[];
+  availableUsers: { id: string; name: string }[];
 }
 
 class PropertyView extends Component<{}, PropertyViewState> {
@@ -29,7 +29,7 @@ class PropertyView extends Component<{}, PropertyViewState> {
       newPropertyPrice: '',
       ownerId: '',
       isLoading: false,
-      availableUsers: []
+      availableUsers: [],
     };
   }
 
@@ -50,17 +50,17 @@ class PropertyView extends Component<{}, PropertyViewState> {
 
   private updateAvailableUsers = () => {
     this.setState({
-      availableUsers: userStore.getUsers().map(user => ({
+      availableUsers: userStore.getAll().map((user) => ({
         id: user.id,
-        name: user.name
-      }))
+        name: user.name,
+      })),
     });
   };
 
   private handleInputChange = (e: Event) => {
     const target = e.target as HTMLInputElement | HTMLSelectElement;
     this.setState({
-      [target.name]: target.value
+      [target.name]: target.value,
     } as unknown as PropertyViewState);
   };
 
@@ -106,18 +106,19 @@ class PropertyView extends Component<{}, PropertyViewState> {
         id: Date.now().toString(),
         name: newPropertyName.trim(),
         price,
-        ownerId
+        ownerId,
       };
 
       await propertyActions.addProperty(newProperty);
       this.setState({
         newPropertyName: '',
         newPropertyPrice: '',
-        ownerId: ''
+        ownerId: '',
       });
     } catch (error) {
       this.setState({
-        error: error instanceof Error ? error.message : 'Failed to add property'
+        error:
+          error instanceof Error ? error.message : 'Failed to add property',
       });
     } finally {
       this.setState({ isLoading: false });
@@ -130,7 +131,8 @@ class PropertyView extends Component<{}, PropertyViewState> {
       await propertyActions.removeProperty(id);
     } catch (error) {
       this.setState({
-        error: error instanceof Error ? error.message : 'Failed to remove property'
+        error:
+          error instanceof Error ? error.message : 'Failed to remove property',
       });
     } finally {
       this.setState({ isLoading: false });
@@ -145,63 +147,65 @@ class PropertyView extends Component<{}, PropertyViewState> {
       ownerId,
       isLoading,
       error,
-      availableUsers
+      availableUsers,
     } = this.state;
 
     return (
-      <div class="property-view">
+      <div class='property-view'>
         <h1>Property Management</h1>
-        
+
         {error && (
-          <div class="error-message">
+          <div class='error-message'>
             {error}
-            <button onClick={() => this.setState({ error: undefined })}>Dismiss</button>
+            <button onClick={() => this.setState({ error: undefined })}>
+              Dismiss
+            </button>
           </div>
         )}
 
-        <form onSubmit={this.handleAddProperty} class="property-form">
-          <div class="form-group">
-            <label for="propertyName">Property Name</label>
+        <form onSubmit={this.handleAddProperty} class='property-form'>
+          <div class='form-group'>
+            <label for='propertyName'>Property Name</label>
             <input
-              id="propertyName"
-              type="text"
-              name="newPropertyName"
+              id='propertyName'
+              type='text'
+              name='newPropertyName'
               value={newPropertyName}
-              placeholder="Enter property name"
+              placeholder='Enter property name'
               onInput={this.handleInputChange}
               disabled={isLoading}
               required
             />
           </div>
 
-          <div class="form-group">
-            <label for="propertyPrice">Price ($)</label>
+          <div class='form-group'>
+            <label for='propertyPrice'>Price ($)</label>
             <input
-              id="propertyPrice"
-              type="number"
-              name="newPropertyPrice"
+              id='propertyPrice'
+              type='number'
+              name='newPropertyPrice'
               value={newPropertyPrice}
-              placeholder="Enter price"
+              placeholder='Enter price'
               onInput={this.handleInputChange}
               disabled={isLoading}
-              min="1"
-              step="0.01"
+              min='1'
+              step='0.01'
               required
             />
           </div>
 
-          <div class="form-group">
-            <label for="propertyOwner">Owner</label>
+          <div class='form-group'>
+            <label for='propertyOwner'>Owner</label>
             <select
-              id="propertyOwner"
-              name="ownerId"
+              id='propertyOwner'
+              name='ownerId'
               value={ownerId}
               onInput={this.handleInputChange}
               disabled={isLoading || availableUsers.length === 0}
               required
             >
-              <option value="">Select Owner</option>
-              {availableUsers.map(user => (
+              <option value=''>Select Owner</option>
+              {availableUsers.map((user) => (
                 <option value={user.id} key={user.id}>
                   {user.name} (ID: {user.id})
                 </option>
@@ -210,33 +214,38 @@ class PropertyView extends Component<{}, PropertyViewState> {
           </div>
 
           <button
-            type="submit"
+            type='submit'
             disabled={isLoading || availableUsers.length === 0}
-            class="submit-button"
+            class='submit-button'
           >
             {isLoading ? 'Adding...' : 'Add Property'}
           </button>
         </form>
 
-        <div class="property-list">
+        <div class='property-list'>
           <h2>Current Properties</h2>
           {properties.length === 0 ? (
             <p>No properties available</p>
           ) : (
             <ul>
-              {properties.map(property => {
-                const owner = availableUsers.find(u => u.id === property.ownerId);
+              {properties.map((property) => {
+                const owner = availableUsers.find(
+                  (u) => u.id === property.ownerId
+                );
                 return (
-                  <li key={property.id} class="property-item">
-                    <div class="property-info">
+                  <li key={property.id} class='property-item'>
+                    <div class='property-info'>
                       <h3>{property.name}</h3>
                       <p>Price: ${property.price.toLocaleString()}</p>
-                      <p>Owner: {owner ? owner.name : 'Unknown'} (ID: {property.ownerId})</p>
+                      <p>
+                        Owner: {owner ? owner.name : 'Unknown'} (ID:{' '}
+                        {property.ownerId})
+                      </p>
                     </div>
                     <button
                       onClick={() => this.handleRemoveProperty(property.id)}
                       disabled={isLoading}
-                      class="remove-button"
+                      class='remove-button'
                     >
                       {isLoading ? 'Removing...' : 'Remove'}
                     </button>
