@@ -242,13 +242,6 @@ class PropertyView extends Component<{}, PropertyViewState> {
                         {property.ownerId})
                       </p>
                     </div>
-                    <button
-                      onClick={() => this.handleRemoveProperty(property.id)}
-                      disabled={isLoading}
-                      class='remove-button'
-                    >
-                      {isLoading ? 'Removing...' : 'Remove'}
-                    </button>
                   </li>
                 );
               })}
