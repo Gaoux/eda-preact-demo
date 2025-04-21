@@ -1,34 +1,20 @@
-import AppDispatcher from '../dispatcher/dispatcher';
+import { produceEvent } from '../utils/KafkaService';
 
 // Action types
-export const ADD_USER = 'add-user';
+export const ADD_USER = 'ADD_USER';
 
 export function addUser(name: string) {
-  // Call the Go API Gateway to emit the event to Kafka
-  fetch('http://localhost:8080/api/events', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      eventType: ADD_USER,
-      payload: { name },
-    }),
-  })
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error('Failed to send event');
-      }
-      return res.json();
-    })
-    .then((data) => {
-      // Dispatch to Flux for local state handling (optional)
-      AppDispatcher.dispatch({
-        type: ADD_USER,
-        user: data.user, // in case backend responds with user object (id + name)
-      });
+  const eventPayload = {
+    eventType: ADD_USER,
+    payload: { name },
+  };
+
+  // Produce the event directly to Kafka
+  produceEvent('events-topic', eventPayload)
+    .then(() => {
+      console.log('Event successfully produced to Kafka:', eventPayload);
     })
     .catch((err) => {
-      console.error('Error sending event:', err);
+      console.error('Error producing event to Kafka:', err);
     });
 }

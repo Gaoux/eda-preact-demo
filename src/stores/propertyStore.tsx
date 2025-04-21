@@ -1,5 +1,10 @@
 import { EventEmitter } from 'events';
-import dispatcher from '../dispatcher/dispatcher';
+import {
+  createConsumer,
+  subscribeConsumer,
+  consumeEvents,
+  deleteConsumer,
+} from '../utils/KafkaService';
 
 interface Property {
   id: string;
@@ -10,41 +15,78 @@ interface Property {
 
 class PropertyStore extends EventEmitter {
   private properties: Property[] = [];
+  private consumerGroupId = 'property-consumer-group';
+  private consumerInstanceId = '';
+
+  constructor() {
+    super();
+    this.initializeConsumer();
+  }
 
   // Get current properties
   getProperties() {
     return this.properties;
   }
 
-  // Handle add property action
-  private handleAddProperty(property: Property) {
-    this.properties.push(property);
-    this.emit('change'); // Emit change when properties list updates
+  // Initialize Kafka consumer
+  private async initializeConsumer() {
+    try {
+      const consumer = await createConsumer(this.consumerGroupId);
+      this.consumerInstanceId = consumer.instance_id;
+
+      await subscribeConsumer(this.consumerGroupId, this.consumerInstanceId, [
+        'events-topic',
+      ]);
+
+      this.consumeKafkaEvents();
+    } catch (err) {
+      console.error('Error initializing Kafka consumer:', err);
+    }
   }
 
-  // Handle remove property action
-  private handleRemoveProperty(propertyId: string) {
-    this.properties = this.properties.filter(
-      (property) => property.id !== propertyId
-    );
-    this.emit('change'); // Emit change when a property is removed
-  }
+  // Consume Kafka events in real-time
+  private async consumeKafkaEvents() {
+    try {
+      while (true) {
+        const events = await consumeEvents(
+          this.consumerGroupId,
+          this.consumerInstanceId
+        );
+        if (!events) continue; // Skip if no events
+        events.forEach((event) => {
+          if (event.eventType === 'PROPERTY_CREATED') {
+            console.log('Processing PROPERTY_CREATED event:', event); // Log specific event details
 
-  // Dispatcher registration to listen to actions
-  constructor() {
-    super();
-    dispatcher.register((action) => {
-      switch (action.type) {
-        case 'ADD_PROPERTY':
-          this.handleAddProperty(action.property);
-          break;
-        case 'REMOVE_PROPERTY':
-          this.handleRemoveProperty(action.propertyId);
-          break;
-        default:
-          break;
+            // Validate the payload structure
+            if (
+              event.payload &&
+              event.payload.id &&
+              event.payload.name &&
+              event.payload.price &&
+              event.payload.ownerId
+            ) {
+              this.properties.push(event.payload);
+              this.emit('change'); // Notify listeners of the update
+            } else {
+              console.error('Invalid event payload structure:', event.payload);
+            }
+          }
+        });
       }
-    });
+    } catch (err) {
+      console.error('Error consuming Kafka property events:', err);
+    }
+  }
+
+  // Cleanup consumer on shutdown
+  async cleanup() {
+    try {
+      if (this.consumerInstanceId) {
+        await deleteConsumer(this.consumerGroupId, this.consumerInstanceId);
+      }
+    } catch (err) {
+      console.error('Error cleaning up Kafka consumer:', err);
+    }
   }
 }
 
