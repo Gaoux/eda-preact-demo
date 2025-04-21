@@ -4,60 +4,48 @@
 
 **This frontend requires a compatible backend service to be running.** The demo won't function properly without:
 
-1. **Kafka Backend Service** (Go/Node.js/Java)
+1. **Kafka Backend Service** (Go)
 
    - Must be connected to the same Kafka broker
-   - Must implement the expected event schemas:
+   - Backend repository: [Kafka Backend Service](https://github.com/Gaoux/eda-go-backend)
 
-     ```typescript
-     interface UserEvent {
-       type: 'USER_CREATED' | 'USER_UPDATED';
-       user: { id: string; name: string };
-     }
-
-     interface PropertyEvent {
-       type: 'PROPERTY_ADDED' | 'PROPERTY_REMOVED';
-       property: { id: string; name: string; price: number };
-     }
-     ```
-
-2. **Kafka Infrastructure** (included in `/kafka-infra`)
-   - Requires Docker
-   - Starts Kafka + REST Proxy
+2. **Kafka Infrastructure** (In the backend)
+   - Kafka Broker and REST Proxy are started as part of the backend's Docker Compose setup.
 
 ## Quick Start (Development)
 
-1. **Start Kafka** (in separate terminal):
+1. **Start Kafka and Backend**:
 
-   ```bash
-   cd kafka-infra
-   docker-compose up -d
-   ```
+   - Navigate to the backend directory and start the backend service:
 
-   _For more Kafka configuration details, see the [Kafka README](./kafka-infra/README.md)_
+     ```bash
+     cd ../eda-go-kafka
+     docker-compose up -d
+     ```
 
-2. **Run Backend Service**:  
-   See your backend [repository](https://github.com/gaoux/) README for instructions
+   - Ensure the backend is running and connected to Kafka.
 
-3. **Run Frontend**:
+2. **Start Frontend**:
 
-   ```bash
-    npm install
-    npm run dev
-   ```
+   - Navigate to the frontend directory and start the frontend service:
 
-4. **Access the application**:  
-   Open `http://localhost:5173` in your browser
+     ```bash
+     cd ../eda-preact-demo
+     docker-compose up -d
+     ```
+
+3. **Access the application**:
+
+   Open `http://localhost:3000` in your browser.
 
 ## Backend Integration Checklist
 
 Your backend must:
 
 1. Connect to the same Kafka broker (localhost:9092)
-2. Produce/consume from these topics:
+2. Produce/consume from the topic:
 
-   - `user-events`
-   - `property-events`
+   - `events-topic`
 
 ## Production Notes
 
@@ -67,7 +55,7 @@ This setup is for development only.
 
 If events aren't processing:
 
-1. Verify backend is running
+1. Verify backend is running.
 
 2. Check Kafka topics exist:
 
